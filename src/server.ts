@@ -12,13 +12,13 @@ const pool = new Pool({
 })
 
 
-const initDB = async() => {
+const initDB = async () => {
     try {
-            await pool.query(`
+        await pool.query(`
                 CREATE TABLE IF NOT EXISTS users(
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(20),
-                email VARCHAR(20) NOT NULL,
+                email VARCHAR(20) UNIQUE NOT NULL,
                 password VARCHAR(20) NOT NULL,
                 is_active BOOLEAN DEFAULT true,
                 age INT,
@@ -27,7 +27,7 @@ const initDB = async() => {
                 updated_at TIMESTAMP DEFAULT NOW()
                 )
                 `)
-                console.log('Database connected successfully');  
+        console.log('Database connected successfully');
     } catch (error) {
         console.log(error);
     }
@@ -43,12 +43,24 @@ app.get('/', (req: Request, res: Response) => {
 })
 
 app.post('/post', async (req: Request, res: Response) => {
-    const { name, age } = req.body
+    try {
+        const { name, age, email, password } = req.body
 
-    res.status(201).json({
-        message: "Created Post",
-        data: { name, age }
-    })
+        const result = await pool.query(`
+        INSERT INTO users(name, email, password, age) VALUES($1, $2, $3, $4) RETURNING *
+        `, [name, email, password, age])
+
+
+        res.status(201).json({
+            message: "Created Post",
+            data: result.rows[0]
+        })
+    } catch (error: any) {
+        res.status(500).json({
+            message: error.message,
+            error: error
+        })
+    }
 })
 
 app.listen(port, () => {
